@@ -1,14 +1,6 @@
 # Course: Mastering GitHub Self-Hosted Runners 📚
 
-## Overview
-
-This course guides you through understanding, deploying, and maintaining GitHub self-hosted runners. Each module includes concept discussions, hands-on examples, and Q\&A to reinforce learning.
-
-### Who Should Take This Course?
-
-* DevOps engineers seeking control over CI/CD infrastructure
-* Developers aiming to optimize GitHub Actions
-* System administrators responsible for secure and scalable build environments
+Below is a fully fleshed-out version of each module, expanding on every bullet point with concepts, examples, and practical guidance.
 
 ---
 
@@ -16,28 +8,34 @@ This course guides you through understanding, deploying, and maintaining GitHub 
 
 ### 1.1 What Are Runners?
 
-* **GitHub-hosted runners** vs **Self-hosted runners**
-* Benefits and trade-offs of self-hosted
+**GitHub-hosted runners**
+
+* **Definition:** Virtual machines managed by GitHub, pre-configured with common build tools and languages.
+* **Pros:** Zero maintenance, fast start-up, automatically patched.
+* **Cons:** Limited free minutes, cannot install custom software or access private networks.
+
+**Self-hosted runners**
+
+* **Definition:** Servers (physical or cloud) that *you* spin up, register with your repo/org, and manage yourself.
+* **Pros:** Unlimited minutes, full control over hardware/software, ability to access internal resources.
+* **Cons:** You’re responsible for security updates, scaling, and reliability.
 
 ### 1.2 Use Cases
 
-* Building on custom hardware (GPUs, ARM)
-* Accessing private networks
-* Cost optimization
+1. **Custom hardware**
 
-#### Example 1.1: Comparing Runners
+   * Training machine-learning models on GPUs or building embedded-ARM binaries.
+   * Example: A data-science team uses a self-hosted runner with multiple NVIDIA GPUs to parallelize model training.
 
-| Feature        | GitHub-hosted | Self-hosted     |
-|----------------|---------------|-----------------|
-| Maintenance    | Managed       | Self-managed    |
-| Custom hardware| ❌            | ✅              |
-| Free minutes   | 2,000/month   | Unlimited       |
-| Security scope | Shared        | Isolated on-prem|
+2. **Private network access**
 
-**Q\&A**
+   * Running integration tests against databases or services behind a corporate VPN.
+   * Example: A banking CI pipeline uses self-hosted runners inside the corporate network to test against on-prem systems.
 
-1. **Q:** Why choose a self-hosted runner over GitHub-hosted?
-   **A:** For custom environments, private network access, and unlimited minutes.
+3. **Cost optimization**
+
+   * Avoiding per-minute charges by re-using idle capacity on long-lived servers.
+   * Example: An open-source project spins up spot instances overnight to process nightly builds at a fraction of normal cost.
 
 ---
 
@@ -45,24 +43,18 @@ This course guides you through understanding, deploying, and maintaining GitHub 
 
 ### 2.1 Runner Architecture
 
-* Runner application, GitHub Actions service, Workflows
-* Communication over HTTPS
+* **GitHub Actions service:** Central orchestrator that stores workflows and schedules jobs.
+* **Runner application:** Agent process you install on your machine; it polls GitHub for jobs, executes them, and returns results.
+* **Workflows and jobs:** YAML files in your repo that define steps; each job is dispatched to a runner.
+
+```plaintext
+[GitHub Actions service] <-- HTTPS --> [Self-hosted runner] --> [Build container or host OS]
+```
 
 ### 2.2 Supported Platforms
 
-* Windows, Linux, macOS
-* ARM vs x86
-
-#### Example 2.1: Runner Components Diagram
-
-```plaintext
-[GitHub Service] <--HTTPS--> [Runner Service] --> [Build Container/Host]
-```
-
-**Q\&A**
-
-1. **Q:** How does the runner communicate with GitHub?
-   **A:** Over secure HTTPS using a registration token.
+* **Windows, Linux, macOS:** Officially supported; choose based on your build requirements.
+* **ARM vs. x86:** ARM runners are ideal for cross-compiling ARM binaries or testing ARM-specific code.
 
 ---
 
@@ -70,34 +62,27 @@ This course guides you through understanding, deploying, and maintaining GitHub 
 
 ### 3.1 Prerequisites
 
-* GitHub repository/organization permissions
-* Supported OS and hardware
-* Docker (optional)
+* **Permissions:** You need Admin access to the GitHub repo or org.
+* **OS and hardware:** Ensure your OS version is supported (e.g., Ubuntu 20.04, Windows Server 2019).
+* **Docker (optional):** For containerized execution, install Docker and grant the runner user permission to control it.
 
 ### 3.2 Registration Process
 
-1. Generate a registration token in repo/org settings.
-2. Download runner package.
-3. Configure with token.
-4. Run `./config.sh` and `./run.sh`.
+1. **Generate token:** In **Settings → Actions → Runners → New self-hosted runner**, click “Generate token”.
+2. **Download package:** Obtain the runner binary (Linux x64, ARM, Windows ZIP, etc.).
+3. **Configure:**
 
-#### Example 3.1: Linux Runner Setup
+   ```bash
+   ./config.sh --url https://github.com/owner/repo \
+               --token YOUR_TOKEN
+   ```
+4. **Run:**
 
-```bash
-# Download
-curl -O -L https://github.com/actions/runner/releases/download/v2.305.0/actions-runner-linux-x64-2.305.0.tar.gz
-# Extract
-tar xzf actions-runner-linux-x64-2.305.0.tar.gz
-# Configure
-./config.sh --url https://github.com/owner/repo --token <TOKEN>
-# Start
-./run.sh
-```
+   ```bash
+   ./run.sh
+   ```
 
-**Q\&A**
-
-1. **Q:** Where do you get the registration token?
-   **A:** From Settings → Actions → Runners → New self-hosted runner.
+   Optionally install as a service for auto-start.
 
 ---
 
@@ -105,24 +90,19 @@ tar xzf actions-runner-linux-x64-2.305.0.tar.gz
 
 ### 4.1 Labels
 
-* Defining `--labels` during config
-* Using labels in workflows
+* When configuring, you can add comma-separated labels that describe capabilities:
 
-#### Example 4.1: Labeling a Runner
-
-```bash
-./config.sh --url https://github.com/owner/repo --token <TOKEN> --labels selfhosted,Linux,high-mem
-```
+  ```bash
+  ./config.sh --url ... --token ... --labels selfhosted,Linux,high-mem
+  ```
+* In workflows, `runs-on: [selfhosted, high-mem]` ensures only runners with that label pick up the job.
 
 ### 4.2 Autoscaling Patterns
 
-* Using Docker Machine, Kubernetes, or third-party tools
-* GitHub's own autoscaling runner offerings
-
-**Q\&A**
-
-1. **Q:** How do labels affect runner selection?
-   **A:** Workflows specify `runs-on: [selfhosted, Linux]` to target matching runners.
+* **Docker Machine:** Launch new Docker hosts on demand (e.g., AWS EC2)—perfect for ephemeral runners.
+* **Kubernetes:** Use the [actions-runner-controller](https://github.com/actions-runner-controller) to spin up runner pods per job.
+* **Third-party tools:** Solutions like HashiCorp Nomad or custom Terraform scripts.
+* **GitHub’s autoscaling offering:** In private beta, GitHub’s own hosted autoscaling runners.
 
 ---
 
@@ -130,37 +110,46 @@ tar xzf actions-runner-linux-x64-2.305.0.tar.gz
 
 ### 5.1 Workflow Syntax
 
-* `runs-on` keyword
-* Matrix builds with self-hosted
+* **`runs-on`** keyword selects the runner; an array lets you combine labels.
 
-#### Example 5.1: Basic Workflow Using Self-Hosted
-
-```yaml
-name: CI
-on: [push]
-jobs:
-  build:
-    runs-on: [selfhosted, Linux]
-    steps:
-      - uses: actions/checkout@v3
-      - name: Build
-        run: make all
-```
+  ```yaml
+  jobs:
+    build:
+      runs-on: [selfhosted, Linux]
+      steps:
+        - uses: actions/checkout@v3
+        - run: make all
+  ```
 
 ### 5.2 Matrix Strategy
 
-```yaml
-strategy:
-  matrix:
-    os: [selfhosted]
-    version: [8, 11]
-runs-on: ${{ matrix.os }}
-```
+* Define multiple axes (e.g., JDK versions, OS variants) while still targeting self-hosted runners:
 
-**Q\&A**
+  ```yaml
+  strategy:
+    matrix:
+      jdk: [8, 11]
+  runs-on: [selfhosted, Linux]
+  steps:
+    - name: Set up JDK ${{ matrix.jdk }}
+      uses: actions/setup-java@v3
+      with:
+        java-version: ${{ matrix.jdk }}
+  ```
 
-1. **Q:** Can you mix GitHub-hosted and self-hosted in one workflow?
-   **A:** Yes, using multiple jobs with different `runs-on` values.
+**Mixing runner types:**
+
+* You can have one job on GitHub-hosted, another on self-hosted:
+
+  ```yaml
+  jobs:
+    test:
+      runs-on: ubuntu-latest
+      steps: ...
+    deploy:
+      runs-on: [selfhosted, deploy]
+      steps: ...
+  ```
 
 ---
 
@@ -168,32 +157,27 @@ runs-on: ${{ matrix.os }}
 
 ### 6.1 Hardening Runners
 
-* Least-privilege principle
-* Running in isolated containers
+* **Least-privilege principle:** Create a dedicated system user for the runner with minimal rights.
+* **Isolation:** Run each job inside a container or VM to limit blast radius.
+* **Network controls:** Restrict egress/ingress so runners can’t reach unauthorized services.
 
 ### 6.2 Updating Runners
 
-* Keeping runner software up to date
-* Automating updates via cron or systemd timers
+* **Manual updates:** Download the latest release from GitHub and restart the service.
+* **Automated updates:**
 
-#### Example 6.1: Auto-Update Script (Linux)
-
-```bash
-#!/bin/bash
-cd /path/to/actions-runner
-./svc.sh stop
-git fetch --tags
-LATEST=$(git tag | sort -V | tail -1)
-wget https://github.com/actions/runner/releases/download/$LATEST/actions-runner-linux-x64-$LATEST.tar.gz
-tar xzf actions-runner-linux-x64-$LATEST.tar.gz
-./svc.sh install
-./svc.sh start
-```
-
-**Q\&A**
-
-1. **Q:** How often should you update self-hosted runners?
-   **A:** At least monthly or when security patches are released.
+  ```bash
+  #!/bin/bash
+  cd /opt/actions-runner
+  ./svc.sh stop
+  LATEST=$(curl -s https://api.github.com/repos/actions/runner/releases/latest \
+           | jq -r .tag_name)
+  wget https://github.com/actions/runner/releases/download/$LATEST/...
+  tar xzf ...
+  ./svc.sh install
+  ./svc.sh start
+  ```
+* **Frequency:** At least monthly, or immediately upon critical security advisories.
 
 ---
 
@@ -201,29 +185,32 @@ tar xzf actions-runner-linux-x64-$LATEST.tar.gz
 
 ### 7.1 GPU-accelerated Builds
 
-* Installing NVIDIA drivers & Docker runtime
+* **Drivers & runtime:** Install NVIDIA drivers and [nvidia-container-toolkit](https://github.com/NVIDIA/nvidia-docker).
+* **Workflow snippet:**
 
-#### Example 7.1: CUDA Build Workflow
-
-```yaml
-runs-on: [selfhosted, gpu]
-steps:
-  - uses: actions/checkout@v3
-  - name: Build with CUDA
-    run: |
-      nvcc --version
-      make cuda
-```
+  ```yaml
+  runs-on: [selfhosted, gpu]
+  steps:
+    - uses: actions/checkout@v3
+    - name: Verify CUDA
+      run: |
+        nvidia-smi
+        nvcc --version
+    - name: Build CUDA app
+      run: make cuda
+  ```
 
 ### 7.2 Kubernetes-based Runners
 
-* Deploying runner-controller on a k8s cluster
-* Dynamic provisioning
+* **actions-runner-controller:**
 
-**Q\&A**
+  * Deploys a Kubernetes Operator that watches Runner custom resources.
+  * Automatically creates and scales runner pods per workload.
+* **Benefits:**
 
-1. **Q:** What benefits do k8s-runner controllers provide?
-   **A:** Scalability and isolation per pod.
+  * Pod‐per‐job isolation.
+  * Effortless horizontal scaling.
+  * Leverages existing k8s cluster security and RBAC.
 
 ---
 
@@ -231,35 +218,32 @@ steps:
 
 ### 8.1 Logs and Diagnostics
 
-* Accessing runner logs in `_diag` folder
-* Verbose logging mode `--debug`
+* **Logs location:** The runner’s `_diag` folder contains JSON logs and crash dumps.
+* **Verbose mode:**
 
-#### Example 8.1: Enabling Debug Logs
-
-```bash
-./run.sh --once --debug
-```
+  ```bash
+  ./run.sh --once --debug
+  ```
 
 ### 8.2 Common Issues
 
-* Token expiration
-* Network connectivity
-* Permission errors
-
-**Q\&A**
-
-1. **Q:** Why does my runner say "job not found"?
-   **A:** Likely label mismatch or expired token.
+1. **Expired token:** Registration tokens are short-lived; re-generate if you see authentication failures.
+2. **Label mismatch:** If a job stays queued, verify that `runs-on` labels exactly match a runner’s labels.
+3. **Network errors:** Ensure the runner machine can reach `https://api.github.com` over HTTPS and that firewalls allow egress.
 
 ---
 
 ## Final Q\&A
 
-1. **Q:** What command lists all active self-hosted runners in an org?
-   **A:** `gh api orgs/{org}/actions/runners` with GitHub CLI.
+1. **List all active runners in an org:**
 
-2. **Q:** How to unregister a runner?
-   **A:** `./config.sh remove --token <TOKEN>` or via Settings UI.
+   ```bash
+   gh api orgs/{org}/actions/runners --paginate
+   ```
+2. **Unregister a runner:**
 
-3. **Q:** How to rotate tokens?
-   **A:** Generate a new token in Settings; decommission old.
+   * CLI: `./config.sh remove --token <TOKEN>`
+   * UI: **Settings → Actions → Runners**, select and remove.
+3. **Rotate tokens:**
+
+   * Generate a new token in **Settings → Actions → Runners → New token**, then update your runner configs; decommission the old token immediately.
