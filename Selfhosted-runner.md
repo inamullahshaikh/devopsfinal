@@ -27,14 +27,12 @@ This course guides you through understanding, deploying, and maintaining GitHub 
 
 #### Example 1.1: Comparing Runners
 
-```markdown
 | Feature        | GitHub-hosted | Self-hosted     |
 |----------------|---------------|-----------------|
 | Maintenance    | Managed       | Self-managed    |
 | Custom hardware| ❌            | ✅              |
 | Free minutes   | 2,000/month   | Unlimited       |
 | Security scope | Shared        | Isolated on-prem|
-```
 
 **Q\&A**
 
